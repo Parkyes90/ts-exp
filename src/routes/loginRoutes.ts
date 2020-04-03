@@ -16,45 +16,19 @@ function requiredAuth(req: Request, res: Response, next: NextFunction) {
 
 const router = Router();
 
-router.get("/login", (req, res) => {
-  res.send(`
-    <form method="POST">
-        <div>
-          <label>Email</label>
-          <input type="text" name="email">
-        </div>
-        <div>
-          <label>Password</label>
-          <input type="password" name="password">
-          <button>Submit</button>
-        </div>
-    </form>
-  `);
-});
-
-router.post("/login", (req: RequestWithBody, res) => {
-  const { email, password } = req.body;
-  if (email && password && email === "hi@hi.com" && password === "password") {
-    req.session = { loggedIn: true };
-    res.redirect("/");
-  } else {
-    res.send("Invalid email or password");
-  }
-});
-
 router.get("/", (req, res) => {
   if (req.session && req.session.loggedIn) {
     return res.send(`
       <div>
         <div>Your are logged in </div>
-        <a href="/logout">Logout</a>
+        <a href="/auth/logout">Logout</a>
       </div>
     `);
   }
   return res.send(`
       <div>
         <div>Your are not logged in </div>
-        <a href="/login">Login</a>
+        <a href="/auth/login">Login</a>
       </div>
     `);
 });
