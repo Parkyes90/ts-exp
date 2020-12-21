@@ -71,7 +71,8 @@ def write_chart(output_file_dir, title, p, driver):
 
 def generate_pie_chart(df, title, driver, index, output_file_dir):
     df["angle"] = df["value"] / df["value"].sum() * 2 * pi
-    df["color"] = ["#f44336", "#2196f3"]
+    colors = ["#f44336", "#2196f3"]
+    df["color"] = colors[: len(df)]
     legend = []
     for row in df.iterrows():
         _, remain = row
