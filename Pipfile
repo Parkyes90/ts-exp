@@ -1,0 +1,27 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pdftotext = "*"
+konlpy = "*"
+scikit-learn = "*"
+gensim = "*"
+pandas = "*"
+bokeh = "*"
+pyvis = "*"
+parse = "*"
+selenium = "*"
+requests = "*"
+matplotlib = "*"
+xlrd = "==1.2.0"
+plotly = "*"
+kaleido = "*"
+colour = "*"
+ipywidgets = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.8"
