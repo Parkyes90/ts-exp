@@ -194,6 +194,8 @@ def process_survey(data_frame, filename):
                     draw_horizontal_bar_chart(
                         df, title, driver, index, output_file_dir
                     )
+            else:
+                print(percents, title[index], "skipped")
 
 
 def parse():
