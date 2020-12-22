@@ -1,12 +1,10 @@
 import os
-from collections import defaultdict
 from math import pi
 
 import pandas as pd
-from bokeh.io import show, export_png
+from bokeh.io import export_png
 from bokeh.io.export import export_svg
-from bokeh.models import ColumnDataSource, LabelSet
-from bokeh.palettes import Category20c
+from bokeh.models import ColumnDataSource
 from bokeh.plotting import figure
 from bokeh.transform import cumsum
 from selenium import webdriver
@@ -79,6 +77,7 @@ def generate_pie_chart(df, title, driver, index, output_file_dir):
     for row in df.iterrows():
         _, remain = row
         legend.append(f"{remain.answer} - {remain.value} ({remain.percent})")
+    print(legend)
     df["legend"] = legend
     p = figure(
         plot_height=350,
@@ -113,17 +112,18 @@ def draw_horizontal_bar_chart(df, title, driver, index, output_file_dir):
     for _, row in df.iterrows():
         labels.append(f"{row.answer} - {row.value} ({row.percent})")
     labels = [label[:50] if len(label) > 50 else label for label in labels]
+    title_length = len(title[index])
     df["right"] = df["value"]
     df["label"] = labels
     df["y"] = labels
     df["color"] = "#a7c5eb"
-    extra = {"plot_height": 300}
-    if len(df) > 4:
-        offset = (len(df) - 3) * 60
-        print(len(df), offset)
-        extra = {
-            "plot_height": 300 + offset,
-        }
+    offset = (len(df) - 3) * 60
+    width_offset = int(title_length * 6)
+    print(title_length, width_offset, title[index], "title_length")
+
+    print(len(df), offset)
+    extra = {"height": 300 + offset, "width": 600 + width_offset}
+
     source = ColumnDataSource(data=df.to_dict(orient="list"))
     p = figure(
         y_range=labels,
@@ -148,7 +148,6 @@ def process_survey(data_frame, filename):
         os.path.join(BASE_DIR, "chromedriver"), options=opts
     )
     title = data_frame.title
-    total = data_frame.total
     options = data_frame.options
     parsed_filename = filename.split(".")[0]
     output_file_dir = os.path.join(CAREER_EXP_OUTPUTS_DIR, parsed_filename)
@@ -159,8 +158,6 @@ def process_survey(data_frame, filename):
         os.path.join(CAREER_EXP_OUTPUTS_DIR, f"{parsed_filename}.xlsx")
     ) as writer:
         for index, option in enumerate(options):
-            unique_count = len(option)
-            total_count = total[index]["count"]
             row_data = []
             for key, values in option.items():
                 row_data.append((key, *values.values()))
@@ -181,7 +178,13 @@ def process_survey(data_frame, filename):
                 index=False,
                 header=True,
             )
-            if not (unique_count / total_count >= 0.15):
+            is_skip = False
+            percents = df.loc[df.answer == "기타"].percent.to_list()
+            if len(percents) > 0:
+                percent_value = float(percents[0].split("%")[0])
+                if percent_value >= 50:
+                    is_skip = True
+            if not is_skip:
                 if len(option) < 3:
                     generate_pie_chart(
                         df, title, driver, index, output_file_dir
@@ -196,6 +199,7 @@ def process_survey(data_frame, filename):
 def parse():
     files = read_files()
     for file in files:
+        print(file)
         df = pd.read_json(os.path.join(CAREER_EXP_INPUTS_DIR, file))
         process_survey(df, file)
 
