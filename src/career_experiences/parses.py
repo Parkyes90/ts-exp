@@ -60,11 +60,13 @@ def write_chart(output_file_dir, title, p, driver):
     export_png(
         p,
         webdriver=driver,
+        timeout=500,
         filename=os.path.join(output_dir, f"{title}.png",),
     )
     export_svg(
         p,
         webdriver=driver,
+        timeout=500,
         filename=os.path.join(output_dir, f"{title}.svg",),
     )
 
@@ -106,6 +108,41 @@ def generate_pie_chart(df, title, driver, index, output_file_dir):
     write_chart(output_file_dir, title[index], p, driver)
 
 
+def draw_horizontal_bar_chart(df, title, driver, index, output_file_dir):
+    labels = []
+    for _, row in df.iterrows():
+        labels.append(f"{row.answer} - {row.value} ({row.percent})")
+    labels = [label[:50] if len(label) > 50 else label for label in labels]
+    df["right"] = df["value"]
+    df["label"] = labels
+    df["y"] = labels
+    df["color"] = "#a7c5eb"
+    extra = {"plot_height": 300}
+    if len(df) > 4:
+        offset = (len(df) - 3) * 60
+        print(len(df), offset)
+        extra = {
+            "plot_height": 300 + offset,
+        }
+    source = ColumnDataSource(data=df.to_dict(orient="list"))
+    p = figure(
+        y_range=labels,
+        title=title[index],
+        toolbar_location=None,
+        tools="",
+        output_backend="svg",
+        **extra,
+    )
+    p.hbar(
+        y="label", height=0.8, color="color", source=source,
+    )
+    # p.yaxis.major_label_text_font_size = "25pt"
+    # p.xaxis.axis_label_text_font_size = "25pt"
+    # p.xaxis.major_label_text_font_size = "25pt"
+    write_chart(output_file_dir, title[index], p, driver)
+    # p.xgrid.grid_line_color = None
+
+
 def process_survey(data_frame, filename):
     driver = webdriver.Chrome(
         os.path.join(BASE_DIR, "chromedriver"), options=opts
@@ -113,59 +150,47 @@ def process_survey(data_frame, filename):
     title = data_frame.title
     total = data_frame.total
     options = data_frame.options
-    output_file_dir = filename.split(".")[0]
-    output_file_dir = os.path.join(CAREER_EXP_OUTPUTS_DIR, output_file_dir)
+    parsed_filename = filename.split(".")[0]
+    output_file_dir = os.path.join(CAREER_EXP_OUTPUTS_DIR, parsed_filename)
+
     if not os.path.isdir(output_file_dir):
         os.mkdir(output_file_dir)
-    for index, option in enumerate(options):
-        print(index, title[index], filename)
-        unique_count = len(option)
-        total_count = total[index]["count"]
-        if unique_count / total_count >= 0.15:
-            continue
-        row_data = []
-        for key, values in option.items():
-            row_data.append((key, *values.values()))
-        df = pd.DataFrame(row_data, columns=["answer", "value", "percent"])
+    with pd.ExcelWriter(
+        os.path.join(CAREER_EXP_OUTPUTS_DIR, f"{parsed_filename}.xlsx")
+    ) as writer:
+        for index, option in enumerate(options):
+            unique_count = len(option)
+            total_count = total[index]["count"]
+            row_data = []
+            for key, values in option.items():
+                row_data.append((key, *values.values()))
+            df = pd.DataFrame(row_data, columns=["answer", "value", "percent"])
+            df = df.sort_values(by=["value"], axis=0, ascending=True)
+            excel_df = df.sort_values(by=["value"], axis=0, ascending=False)
+            excel_df = pd.DataFrame(
+                [
+                    ["응답수", *excel_df.value.to_list()],
+                    ["응답률", *excel_df.percent.to_list()],
+                ],
+                columns=["구분", *excel_df.answer.to_list()],
+            )
 
-        if len(option) < 3:
-            generate_pie_chart(df, title, driver, index, output_file_dir)
-            # show(p)
-        else:
-            labels = []
-            for _, row in df.iterrows():
-                labels.append(f"{row.answer} - {row.value} ({row.percent})")
-            df["right"] = df["value"]
-            df["label"] = labels
-            df["y"] = labels
-            df["color"] = "#a7c5eb"
-            extra = {}
-            if len(df) > 30:
-                extra = {
-                    "height": 1600,
-                    "width": 1600,
-                }
-            source = ColumnDataSource(data=df.to_dict(orient="list"))
-            p = figure(
-                y_range=labels,
-                title=title[index],
-                toolbar_location=None,
-                tools="",
-                output_backend="svg",
-                **extra,
+            excel_df.to_excel(
+                writer,
+                sheet_name=title[index].replace("?", ""),
+                index=False,
+                header=True,
             )
-            p.hbar(
-                y="label",
-                height=0.8,
-                color="color",
-                source=source,
-                line_dash_offset=20,
-            )
-            # p.yaxis.major_label_text_font_size = "25pt"
-            # p.xaxis.axis_label_text_font_size = "25pt"
-            # p.xaxis.major_label_text_font_size = "25pt"
-            write_chart(output_file_dir, title[index], p, driver)
-            # p.xgrid.grid_line_color = None
+            if not (unique_count / total_count >= 0.15):
+                if len(option) < 3:
+                    generate_pie_chart(
+                        df, title, driver, index, output_file_dir
+                    )
+                    # show(p)
+                else:
+                    draw_horizontal_bar_chart(
+                        df, title, driver, index, output_file_dir
+                    )
 
 
 def parse():

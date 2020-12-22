@@ -20,6 +20,7 @@ plotly = "*"
 kaleido = "*"
 colour = "*"
 ipywidgets = "*"
+openpyxl = "*"
 
 [dev-packages]
 
