@@ -77,7 +77,6 @@ def generate_pie_chart(df, title, driver, index, output_file_dir):
     for row in df.iterrows():
         _, remain = row
         legend.append(f"{remain.answer} - {remain.value} ({remain.percent})")
-    print(legend)
     df["legend"] = legend
     p = figure(
         plot_height=350,
@@ -147,44 +146,38 @@ def process_survey(data_frame, filename):
     driver = webdriver.Chrome(
         os.path.join(BASE_DIR, "chromedriver"), options=opts
     )
+    skips = data_frame.skip
     title = data_frame.title
     options = data_frame.options
     parsed_filename = filename.split(".")[0]
     output_file_dir = os.path.join(CAREER_EXP_OUTPUTS_DIR, parsed_filename)
-
     if not os.path.isdir(output_file_dir):
         os.mkdir(output_file_dir)
     with pd.ExcelWriter(
         os.path.join(CAREER_EXP_OUTPUTS_DIR, f"{parsed_filename}.xlsx")
     ) as writer:
         for index, option in enumerate(options):
+            is_skip = bool(skips[index])
             row_data = []
-            for key, values in option.items():
-                row_data.append((key, *values.values()))
-            df = pd.DataFrame(row_data, columns=["answer", "value", "percent"])
-            df = df.sort_values(by=["value"], axis=0, ascending=True)
-            excel_df = df.sort_values(by=["value"], axis=0, ascending=False)
-            excel_df = pd.DataFrame(
-                [
-                    ["응답수", *excel_df.value.to_list()],
-                    ["응답률", *excel_df.percent.to_list()],
-                ],
-                columns=["구분", *excel_df.answer.to_list()],
-            )
-
-            excel_df.to_excel(
-                writer,
-                sheet_name=title[index].replace("?", ""),
-                index=False,
-                header=True,
-            )
-            is_skip = False
-            percents = df.loc[df.answer == "기타"].percent.to_list()
-            if len(percents) > 0:
-                percent_value = float(percents[0].split("%")[0])
-                if percent_value >= 50:
-                    is_skip = True
             if not is_skip:
+                for key, values in option.items():
+                    row_data.append((key, *values.values()))
+                df = pd.DataFrame(
+                    row_data, columns=["answer", "value", "percent"]
+                )
+                df = df.sort_values(
+                    by=["value"], axis=0, ascending=not len(option) < 3
+                )
+                excel_df = df.sort_values(
+                    by=["value"], axis=0, ascending=False
+                )
+                excel_df = pd.DataFrame(
+                    [
+                        ["응답수", *excel_df.value.to_list()],
+                        ["응답률", *excel_df.percent.to_list()],
+                    ],
+                    columns=["구분", *excel_df.answer.to_list()],
+                )
                 if len(option) < 3:
                     generate_pie_chart(
                         df, title, driver, index, output_file_dir
@@ -195,14 +188,28 @@ def process_survey(data_frame, filename):
                         df, title, driver, index, output_file_dir
                     )
             else:
-                print(percents, title[index], "skipped")
+                df = pd.DataFrame(
+                    zip(option.keys(), option.values()),
+                    columns=["key", "value"],
+                )
+                df = df.sort_values(by=["value"], axis=0, ascending=False)
+                excel_df = pd.DataFrame(
+                    [["응답수", *df.value.to_list()]],
+                    columns=["구분", *df.key.to_list()],
+                )
+            excel_df.to_excel(
+                writer,
+                sheet_name=title[index].replace("?", ""),
+                index=False,
+                header=True,
+            )
 
 
 def parse():
     files = read_files()
     for file in files:
-        print(file)
         df = pd.read_json(os.path.join(CAREER_EXP_INPUTS_DIR, file))
+        df["skip"] = df["skip"].fillna(False)
         process_survey(df, file)
 
 
