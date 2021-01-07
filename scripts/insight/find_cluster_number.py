@@ -1,10 +1,11 @@
 import os
 from collections import defaultdict
+import random
 
 import pandas as pd
 from bokeh.core.property.dataspec import value
 from bokeh.io.export import export_svg, export_png
-from bokeh.models import ColumnDataSource, HoverTool
+from bokeh.models import ColumnDataSource, HoverTool, Label
 from bokeh.plotting import figure
 from selenium import webdriver
 from sklearn.cluster import KMeans
@@ -31,16 +32,16 @@ colormap = {
 }
 
 node_shape_map = {
-    0: "^",
+    0: "o",
     1: "o",
-    2: "v",
-    3: "s",
-    4: ">",
-    5: "<",
-    6: "8",
-    7: "h",
-    8: "p",
-    9: "d",
+    2: "o",
+    3: "o",
+    4: "o",
+    5: "o",
+    6: "o",
+    7: "o",
+    8: "o",
+    9: "o",
 }
 
 
@@ -177,6 +178,106 @@ def write_similarity(df, cluster_output_path, k):
     )
 
 
+def write_cross_chart(df, cluster_output_path, k):
+    height = 1600
+    width = 1600
+    driver = webdriver.Chrome(
+        os.path.join(BASE_DIR, "chromedriver"), options=opts
+    )
+    x = df.c3.to_list()
+    y = df.c1.to_list()
+    clusters = df.cluster.to_list()
+    plot = figure(
+        # title='TSNE Twitter BIO Embeddings',
+        plot_width=width,
+        plot_height=height,
+        active_scroll="wheel_zoom",
+        # x_range=r,
+        # y_range=r,
+        output_backend="svg",
+    )
+    plot.add_tools(HoverTool(tooltips="@title"))
+    new_x = [el + random.randrange(-10, 10) * 0.05 for el in x]
+    new_y = [el + random.randrange(-10, 10) * 0.05 for el in y]
+    colors = [colormap[clusters[i]] for i in range(len(new_y))]
+    source = ColumnDataSource(data={"x": new_x, "y": new_y, "color": colors})
+    plot.scatter(
+        source=source,
+        x="x",
+        y="y",
+        line_alpha=0.6,
+        fill_alpha=0.6,
+        color="color",
+    )
+
+    # size
+    # count_map = defaultdict(int)
+    # for coord in zip(x, y):
+    #     count_map[coord] += 1 * 0.5
+    # source = ColumnDataSource(
+    #     data={
+    #         "x": [k[0] for k in count_map.keys()],
+    #         "y": [k[1] for k in count_map.keys()],
+    #         "size": list(count_map.values()),
+    #     }
+    # )
+    # plot.scatter(
+    #     source=source,
+    #     x="x",
+    #     y="y",
+    #     line_alpha=0.6,
+    #     fill_alpha=0.6,
+    #     size="size",
+    # )
+
+    plot.yaxis.axis_label_text_font_size = "25pt"
+    plot.yaxis.major_label_text_font_size = "25pt"
+    plot.xaxis.axis_label_text_font_size = "25pt"
+    plot.xaxis.major_label_text_font_size = "25pt"
+    plot.title.text_font_size = value("32pt")
+    plot.xaxis.visible = True
+    # plot.xaxis.bounds = (0, 0)
+    plot.yaxis.visible = True
+    label_opts1 = dict(x_offset=0, y_offset=750, text_font_size="30px",)
+    msg1 = "C1"
+    caption1 = Label(text=msg1, **label_opts1)
+    label_opts2 = dict(x_offset=0, y_offset=-750, text_font_size="30px",)
+    msg2 = "-C1"
+    caption2 = Label(text=msg2, **label_opts2)
+    label_opts3 = dict(x_offset=750, y_offset=0, text_font_size="30px",)
+    msg3 = "C3"
+    caption3 = Label(text=msg3, **label_opts3)
+    label_opts4 = dict(x_offset=-750, y_offset=0, text_font_size="30px",)
+    msg4 = "-C3"
+    caption4 = Label(text=msg4, **label_opts4)
+    plot.add_layout(caption1, "center")
+    plot.add_layout(caption2, "center")
+    plot.add_layout(caption3, "center")
+    plot.add_layout(caption4, "center")
+    plot.background_fill_color = None
+    plot.border_fill_color = None
+    plot.grid.grid_line_color = None
+    plot.outline_line_color = None
+    plot.yaxis.fixed_location = 0
+    plot.xaxis.fixed_location = 0
+    plot.toolbar.logo = None
+    plot.toolbar_location = None
+    export_svg(
+        plot,
+        filename=os.path.join(cluster_output_path, f"cross-{k}.svg"),
+        webdriver=driver,
+        height=height,
+        width=width,
+    )
+    export_png(
+        plot,
+        filename=os.path.join(cluster_output_path, f"cross-{k}.png"),
+        webdriver=driver,
+        height=height,
+        width=width,
+    )
+
+
 def calculate_cluster_number():
 
     df = pd.read_csv(os.path.join(H_IN_DIRS, "df_happiness.csv"))
@@ -201,11 +302,11 @@ def calculate_cluster_number():
         kmeans = KMeans(n_clusters=k, random_state=42)
         idx = kmeans.fit_predict(x)
         df["cluster"] = idx
-        # write_similarity(df, cluster_output_path, k)
-        # write_cluster_mean(df, idx, cluster_output_path, k)
-        # draw_2d_chart(idx, x, cluster_output_path, k)
-        if k == 2:
-            break
+        write_similarity(df, cluster_output_path, k)
+        write_cluster_mean(df, cluster_output_path, k)
+        draw_2d_chart(idx, x, cluster_output_path, k)
+        write_cross_chart(df, cluster_output_path, k)
+        print(k)
 
 
 def main():
