@@ -197,8 +197,15 @@ def write_cross_chart(df, cluster_output_path, k):
         output_backend="svg",
     )
     plot.add_tools(HoverTool(tooltips="@title"))
-    new_x = [el + random.randrange(-10, 10) * 0.05 for el in x]
-    new_y = [el + random.randrange(-10, 10) * 0.05 for el in y]
+    new_x = []
+    new_y = []
+    for coord in zip(x, y):
+        x_coord, y_coord = coord
+        x_rand = random.uniform(-(0.5 ** 0.5), 0.5 ** 0.5)
+        y_rand_range = (0.5 - x_rand ** 2) ** 0.5
+        y_rand = random.uniform(-y_rand_range, y_rand_range)
+        new_x.append(x_coord + x_rand)
+        new_y.append(y_coord + y_rand)
     colors = [colormap[clusters[i]] for i in range(len(new_y))]
     source = ColumnDataSource(data={"x": new_x, "y": new_y, "color": colors})
     plot.scatter(
@@ -207,6 +214,7 @@ def write_cross_chart(df, cluster_output_path, k):
         y="y",
         line_alpha=0.6,
         fill_alpha=0.6,
+        size=10,
         color="color",
     )
 
@@ -302,9 +310,9 @@ def calculate_cluster_number():
         kmeans = KMeans(n_clusters=k, random_state=42)
         idx = kmeans.fit_predict(x)
         df["cluster"] = idx
-        write_similarity(df, cluster_output_path, k)
-        write_cluster_mean(df, cluster_output_path, k)
-        draw_2d_chart(idx, x, cluster_output_path, k)
+        # write_similarity(df, cluster_output_path, k)
+        # write_cluster_mean(df, cluster_output_path, k)
+        # draw_2d_chart(idx, x, cluster_output_path, k)
         write_cross_chart(df, cluster_output_path, k)
         print(k)
 
