@@ -104,9 +104,10 @@ def write_cluster_mean(df, cluster_output_path, k):
     )
 
 
-def write_similarity(df):
+def write_similarity(df, cluster_output_path, k):
     matrix = df.to_numpy()
-    similarity = cosine_similarity(matrix, matrix)
+    without_cluster = df.drop(["cluster"], axis=1).to_numpy()
+    similarity = cosine_similarity(without_cluster, without_cluster)
     networks = defaultdict(list)
     edge_colors = []
     for idx, s in enumerate(similarity):
@@ -119,7 +120,7 @@ def write_similarity(df):
     for node in networks.keys():
         cluster = matrix[node][len(matrix[node]) - 1]
         g.add_node(node, s=node_shape_map[cluster], color=colormap[cluster])
-    for source, targets in networks.values():
+    for source, targets in networks.items():
         for target in targets:
             cluster = matrix[target][len(matrix[target]) - 1]
             edge_colors.append(colormap[cluster])
@@ -149,23 +150,31 @@ def write_similarity(df):
     for a_shape in node_shapes:
         node_list = []
         colors = []
-        sizes = []
         for sNode in filter(
-            lambda x: x[1]["s"] == a_shape, G.nodes(data=True)
+            lambda x: x[1]["s"] == a_shape, g.nodes(data=True)
         ):
             colors.append(sNode[1]["color"])
-            sizes.append(sNode[1]["size"])
             node_list.append(sNode[0])
         nx.draw_networkx_nodes(
             g,
             pos,
             node_shape=a_shape,
             nodelist=node_list,
+            node_size=10,
             node_color=colors,
-            node_size=sizes,
             **options,
         )
-    plt.show()
+    plt.axis("off")
+    plt.savefig(
+        os.path.join(cluster_output_path, f"cluster-{k}-network.svg"),
+        format="svg",
+        dpi=400,
+    )
+    plt.savefig(
+        os.path.join(cluster_output_path, f"cluster-{k}-network.png"),
+        format="png",
+        dpi=400,
+    )
 
 
 def calculate_cluster_number():
@@ -192,7 +201,7 @@ def calculate_cluster_number():
         kmeans = KMeans(n_clusters=k, random_state=42)
         idx = kmeans.fit_predict(x)
         df["cluster"] = idx
-        write_similarity(df)
+        # write_similarity(df, cluster_output_path, k)
         # write_cluster_mean(df, idx, cluster_output_path, k)
         # draw_2d_chart(idx, x, cluster_output_path, k)
         if k == 2:
