@@ -76,7 +76,7 @@ def generate_pie_chart(df, title, driver, index, output_file_dir):
     legend = []
     for row in df.iterrows():
         _, remain = row
-        legend.append(f"{remain.answer} - {remain.value} ({remain.percent})")
+        legend.append(f"{remain.answer} - {remain.percent} ({remain.value})")
     df["legend"] = legend
     p = figure(
         plot_height=350,
@@ -109,7 +109,7 @@ def generate_pie_chart(df, title, driver, index, output_file_dir):
 def draw_horizontal_bar_chart(df, title, driver, index, output_file_dir):
     labels = []
     for _, row in df.iterrows():
-        labels.append(f"{row.answer} - {row.value} ({row.percent})")
+        labels.append(f"{row.answer} - {row.percent} ({row.value})")
     labels = [label[:50] if len(label) > 50 else label for label in labels]
     title_length = len(title[index])
     df["right"] = df["value"]
@@ -118,9 +118,7 @@ def draw_horizontal_bar_chart(df, title, driver, index, output_file_dir):
     df["color"] = "#a7c5eb"
     offset = (len(df) - 3) * 60
     width_offset = int(title_length * 6)
-    print(title_length, width_offset, title[index], "title_length")
 
-    print(len(df), offset)
     extra = {"height": 300 + offset, "width": 600 + width_offset}
 
     source = ColumnDataSource(data=df.to_dict(orient="list"))
@@ -128,18 +126,15 @@ def draw_horizontal_bar_chart(df, title, driver, index, output_file_dir):
         y_range=labels,
         title=title[index],
         toolbar_location=None,
-        tools="",
         output_backend="svg",
         **extra,
     )
     p.hbar(
         y="label", height=0.8, color="color", source=source,
     )
-    # p.yaxis.major_label_text_font_size = "25pt"
-    # p.xaxis.axis_label_text_font_size = "25pt"
-    # p.xaxis.major_label_text_font_size = "25pt"
+    print(title[index])
+
     write_chart(output_file_dir, title[index], p, driver)
-    # p.xgrid.grid_line_color = None
 
 
 def process_survey(data_frame, filename):
@@ -173,10 +168,20 @@ def process_survey(data_frame, filename):
                 )
                 excel_df = pd.DataFrame(
                     [
-                        ["응답수", *excel_df.value.to_list()],
-                        ["응답률", *excel_df.percent.to_list()],
+                        [
+                            "응답수",
+                            *excel_df.value.to_list(),
+                            sum(excel_df.value),
+                        ],
+                        [
+                            "응답률",
+                            *excel_df.percent.to_list(),
+                            (
+                                f'{sum([float(p.split("%")[0]) for p in excel_df.percent])}%'
+                            ),
+                        ],
                     ],
-                    columns=["구분", *excel_df.answer.to_list()],
+                    columns=["구분", *excel_df.answer.to_list(), "합계"],
                 )
                 if len(option) < 3:
                     generate_pie_chart(
@@ -194,8 +199,8 @@ def process_survey(data_frame, filename):
                 )
                 df = df.sort_values(by=["value"], axis=0, ascending=False)
                 excel_df = pd.DataFrame(
-                    [["응답수", *df.value.to_list()]],
-                    columns=["구분", *df.key.to_list()],
+                    [["응답수", *df.value.to_list(), sum(df.value)]],
+                    columns=["구분", *df.key.to_list(), "합계"],
                 )
             excel_df.to_excel(
                 writer,
