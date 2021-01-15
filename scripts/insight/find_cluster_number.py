@@ -19,12 +19,12 @@ from src.happiness.constants import H_IN_DIRS
 import networkx as nx
 
 colormap = {
-    0: "#f44336",
-    1: "#673ab7",
-    2: "#9c27b0",
-    3: "#e91e63",
-    4: "#3f51b5",
-    5: "#2196f3",
+    0: "#2E86C8",
+    1: "#D24864",
+    2: "#2C986A",
+    3: "#DCA832",
+    4: "#8E80BA",
+    5: "#67C4CD",
     6: "#03a9f4",
     7: "#00bcd4",
     8: "#009688",
@@ -99,6 +99,15 @@ def draw_2d_chart(idx, x, cluster_output_path, k):
 
 
 def write_cluster_mean(df, cluster_output_path, k):
+    average_df_by_cluster = df.groupby(["cluster"]).mean()
+    average_df_by_cluster.to_csv(
+        os.path.join(cluster_output_path, f"cluster-{k}.csv")
+    )
+
+
+def write_score_cluster_mean(df, cluster_output_path, k):
+    df = df.loc[:, [*df.columns[-12:]]]
+    df["cluster"] += 1
     average_df_by_cluster = df.groupby(["cluster"]).mean()
     average_df_by_cluster.to_csv(
         os.path.join(cluster_output_path, f"cluster-{k}.csv")
@@ -286,41 +295,63 @@ def write_cross_chart(df, cluster_output_path, k):
     )
 
 
+def write_cluster_center(df, cluster_centers_, k, cluster_output_path):
+    ret = [[i, *c] for i, c in enumerate(cluster_centers_, 1)]
+    center_df = pd.DataFrame(ret, columns=["cluster", *df.columns[-11:]])
+    center_df.to_csv(
+        os.path.join(cluster_output_path, f"cluster-{k}-center.csv"),
+        index=False,
+    )
+
+
 def calculate_cluster_number():
+    df = pd.read_csv(os.path.join(H_IN_DIRS, "happiness_score_utf8.csv"))
 
-    df = pd.read_csv(os.path.join(H_IN_DIRS, "df_happiness.csv"))
     x = []
-
     for row in df.iterrows():
         idx, r = row
         temp = []
-        for c in df.columns[:10]:
+        for c in df.columns[-11:]:
             temp.append(r[c])
         x.append(temp)
-
-    kmax = 10
-    insight_output_path = os.path.join(OUTPUTS_DIR, "insights")
+    kmax = 6
+    insight_output_path = os.path.join(OUTPUTS_DIR, "score_insights")
     if not os.path.isdir(insight_output_path):
         os.mkdir(insight_output_path)
     for k in range(2, kmax + 1):
+
         cluster_output_path = os.path.join(insight_output_path, f"cluster-{k}")
         if not os.path.isdir(cluster_output_path):
             os.mkdir(cluster_output_path)
 
         kmeans = KMeans(n_clusters=k, random_state=42)
         idx = kmeans.fit_predict(x)
+        write_cluster_center(
+            df, kmeans.cluster_centers_, k, cluster_output_path
+        )
         df["cluster"] = idx
-        # write_similarity(df, cluster_output_path, k)
-        # write_cluster_mean(df, cluster_output_path, k)
-        # draw_2d_chart(idx, x, cluster_output_path, k)
-        write_cross_chart(df, cluster_output_path, k)
-        print(k)
+
+        #     df.to_csv(
+        #         os.path.join(cluster_output_path, f"with_cluster-{k}-raw.csv"),
+        #         index=False,
+        #     )
+        #     write_similarity(df, cluster_output_path, k)
+        write_score_cluster_mean(df, cluster_output_path, k)
+        draw_2d_chart(idx, x, cluster_output_path, k)
+    #     write_cross_chart(df, cluster_output_path, k)
+    #     print(k)
+
+
+def score_clustering():
+    df = pd.read_csv(os.path.join(H_IN_DIRS, "happiness_score_utf8.csv"))
+    print(df)
 
 
 def main():
     # df = pd.read_csv(os.path.join(H_IN_DIRS, "happiness.csv"))
     calculate_cluster_number()
     # print(df)
+    # score_clustering()
 
 
 if __name__ == "__main__":
