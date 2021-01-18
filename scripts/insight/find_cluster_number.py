@@ -70,6 +70,7 @@ def draw_2d_chart(idx, x, cluster_output_path, k):
         y="y",
         line_alpha=0.9,
         fill_alpha=0.9,
+        size=8,
         # size="radius",
         fill_color="color",
         line_color="color",
@@ -304,8 +305,43 @@ def write_cluster_center(df, cluster_centers_, k, cluster_output_path):
     )
 
 
+def calculate_cluster_by_school():
+    df = pd.read_csv(os.path.join(H_IN_DIRS, "happiness_score_utf8_ver2.csv"))
+
+    schools = set(df["cate"])
+    for school in schools:
+        school_df = df[df["cate"] == school].copy()
+        print(school_df)
+        x = []
+        for row in school_df.iterrows():
+            idx, r = row
+            temp = []
+            for c in school_df.columns[-11:]:
+                temp.append(r[c])
+            x.append(temp)
+        kmax = 3
+        insight_output_path = os.path.join(OUTPUTS_DIR, f"{school}_insights")
+        if not os.path.isdir(insight_output_path):
+            os.mkdir(insight_output_path)
+        for k in range(2, kmax + 1):
+            cluster_output_path = os.path.join(
+                insight_output_path, f"cluster-{k}"
+            )
+            if not os.path.isdir(cluster_output_path):
+                os.mkdir(cluster_output_path)
+
+            kmeans = KMeans(n_clusters=k, random_state=42)
+            idx = kmeans.fit_predict(x)
+            write_cluster_center(
+                school_df, kmeans.cluster_centers_, k, cluster_output_path
+            )
+            school_df["cluster"] = idx
+            write_score_cluster_mean(school_df, cluster_output_path, k)
+            draw_2d_chart(idx, x, cluster_output_path, k)
+
+
 def calculate_cluster_number():
-    df = pd.read_csv(os.path.join(H_IN_DIRS, "happiness_score_utf8.csv"))
+    df = pd.read_csv(os.path.join(H_IN_DIRS, "happiness_score_utf8_ver2.csv"))
 
     x = []
     for row in df.iterrows():
@@ -314,7 +350,7 @@ def calculate_cluster_number():
         for c in df.columns[-11:]:
             temp.append(r[c])
         x.append(temp)
-    kmax = 6
+    kmax = 3
     insight_output_path = os.path.join(OUTPUTS_DIR, "score_insights")
     if not os.path.isdir(insight_output_path):
         os.mkdir(insight_output_path)
@@ -349,7 +385,8 @@ def score_clustering():
 
 def main():
     # df = pd.read_csv(os.path.join(H_IN_DIRS, "happiness.csv"))
-    calculate_cluster_number()
+    # calculate_cluster_number()
+    calculate_cluster_by_school()
     # print(df)
     # score_clustering()
 
